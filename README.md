@@ -20,3 +20,8 @@ aarch64
 
 Ref.
 https://docs.aws.amazon.com/greengrass/v2/developerguide/getting-started.html
+
+
+´´´bash
+sudo /greengrass/v2/bin/greengrass-cli deployment create --recipeDir Components/recipes --artifactDir Components/artifacts --merge "com.example.sensehat.led=1.0.0"
+´´´
