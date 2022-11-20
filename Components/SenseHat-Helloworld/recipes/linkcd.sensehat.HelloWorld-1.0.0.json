@@ -1,0 +1,27 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "linkcd.sensehat.HelloWorld",
+  "ComponentVersion": "1.0.0",
+  "ComponentDescription": "IoT Greengrass helloworld component with sensehat.",
+  "ComponentPublisher": "linkcd",
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "Message": "world"
+    }
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux"
+      },
+      "Lifecycle": {
+        "Run": "python3 -u {artifacts:path}/sensehat_hello_world.py \"{configuration:/Message}\""
+      },
+      "Artifacts": [
+        {
+          "URI": "s3://linkcd-greengrass-jumpstart-components-eu-west-1/artifacts/linkcd.sensehat.HelloWorld/1.0.0/sensehat_hello_world.py"
+        }
+      ]
+    }
+  ]
+}
