@@ -47,6 +47,11 @@ sudo cat /greengrass/v2/logs/com.example.sensehat.joystick.log
 
 ´´´
 
+remove component
+´´´bash
+sudo /greengrass/v2/bin/greengrass-cli --ggcRootPath /greengrass/v2 deployment create --remove "com.example.sensehat.joystick"
+´´´
+
 Get local debug console passwords
 ´´´bash
 sudo /greengrass/v2/bin/greengrass-cli get-debug-password

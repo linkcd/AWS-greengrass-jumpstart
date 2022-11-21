@@ -2,11 +2,24 @@
     "RecipeFormatVersion": "2020-01-25",
     "ComponentName": "com.example.sensehat.led",
     "ComponentVersion": "1.0.0",
-    "ComponentDescription": "Component for displaying a number on sensehat led.",
+    "ComponentDescription": "Component for displaying a number on sensehat led. Number can be controlled by joystick and cloud shadow",
     "ComponentPublisher": "linkcd",
     "ComponentConfiguration": {
         "DefaultConfiguration": {
-            "number": "1"
+            "number": "1",
+            "accessControl": {
+                "aws.greengrass.ipc.pubsub": {
+                  "com.example.sensehat.led:pubsub:1": {
+                    "policyDescription": "sub to joystick event with IPC (local).",
+                    "operations": [
+                      "aws.greengrass#SubscribeToTopic"
+                    ],
+                    "resources": [
+                      "*"
+                    ]
+                  }
+                }
+            }
         }
     },
     "Manifests": [
@@ -15,6 +28,10 @@
                 "os": "linux"
             },
             "Lifecycle": {
+                "Install": {
+                    "RequiresPrivilege": true,
+                    "script": "python3 -m pip install --user awsiotsdk"
+                },
                 "Run": {
                     "RequiresPrivilege": true,
                     "script": "python3 -u {artifacts:path}/led.py '{configuration:/number}'"

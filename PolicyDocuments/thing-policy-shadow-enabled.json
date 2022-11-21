@@ -1,0 +1,25 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "iot:Connect",
+          "iot:Publish",
+          "iot:Subscribe",
+          "iot:Receive",
+          "greengrass:*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Effect": "Allow",
+        "Action": [
+            "iot:GetThingShadow",
+            "iot:UpdateThingShadow",
+            "iot:DeleteThingShadow"
+            ],
+        "Resource": "arn:aws:iot:eu-west-1:[YOUR_ACCOUNT_NUMBER]:thing/*"
+      }
+    ]
+  }

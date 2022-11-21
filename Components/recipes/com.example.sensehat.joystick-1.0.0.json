@@ -6,11 +6,23 @@
     "ComponentPublisher": "linkcd",
     "ComponentConfiguration": {
       "DefaultConfiguration": {
-        "joystick_topic": "pihat/joystick",
+        "joystick_iotcore_topic": "pihat/joystick",
+        "joystick_ipc_topic": "ipc/joystick",
         "accessControl": {
+          "aws.greengrass.ipc.pubsub": {
+            "com.example.sensehat.joystick:pubsub:1": {
+              "policyDescription": "Allows access to publish to IPC (local).",
+              "operations": [
+                "aws.greengrass#PublishToTopic"
+              ],
+              "resources": [
+                "*"
+              ]
+            }
+          },
           "aws.greengrass.ipc.mqttproxy": {
-            "com.example.mqtt:mqttproxy:1": {
-              "policyDescription": "Allows access to pub to mqtt.",
+            "com.example.sensehat.joystick:mqttproxy:1": {
+              "policyDescription": "Allows access to pub to Iot Core (cloud).",
               "operations": [
                 "aws.greengrass#PublishToIoTCore"
               ],
@@ -34,7 +46,7 @@
           },
           "Run": {
             "RequiresPrivilege": true,
-            "script": "python3 -u {artifacts:path}/joystick.py '{configuration:/joystick_topic}'"
+            "script": "python3 -u {artifacts:path}/joystick.py '{configuration:/joystick_iotcore_topic}'"
           }
         }
       }
