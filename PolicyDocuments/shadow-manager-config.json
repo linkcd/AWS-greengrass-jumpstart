@@ -1,0 +1,21 @@
+{
+    "reset": [],
+    "merge": {
+      "synchronize": {
+        "coreThing": {
+          "classic": true,
+          "namedShadows": [
+            "NumberLEDShadow"
+          ]
+        },
+        "shadowDocuments": [],
+        "direction": "betweenDeviceAndCloud"
+      },
+      "rateLimits": {
+        "maxOutboundSyncUpdatesPerSecond": 100,
+        "maxTotalLocalRequestsRate": 200,
+        "maxLocalRequestsPerSecondPerThing": 20
+      },
+      "shadowDocumentSizeLimitBytes": 8192
+    }
+  }
