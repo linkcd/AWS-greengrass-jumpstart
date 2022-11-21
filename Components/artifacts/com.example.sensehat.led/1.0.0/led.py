@@ -13,7 +13,7 @@ from awsiot.greengrasscoreipc.model import (
     UnauthorizedError
 )
 
-topic = "pihat/joystick"
+topic = "ipc/joystick"
 
 from sense_hat import SenseHat
 sense = SenseHat()

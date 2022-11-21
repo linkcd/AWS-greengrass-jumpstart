@@ -21,14 +21,16 @@ from awsiot.greengrasscoreipc.model import (
 from sense_hat import SenseHat
 sense = SenseHat()
 
-publishtopic = str(sys.argv[1])
+iotcore_publishtopic = str(sys.argv[1])
+ipc_publishtopic = str(sys.argv[2])
+
 TIMEOUT = 10
 qos = QOS.AT_LEAST_ONCE
 subqos = QOS.AT_MOST_ONCE
 
 ipc_client = awsiot.greengrasscoreipc.connect()
 
-def publishJoystickEvents(publishtopic):
+def publishJoystickEvents(iotcore_publishtopic, ipc_publishtopic):
     for event in sense.stick.get_events():
         
         message =  {
@@ -41,7 +43,7 @@ def publishJoystickEvents(publishtopic):
 
         # iot core msg publishing
         iotcore_req = PublishToIoTCoreRequest()
-        iotcore_req.topic_name = publishtopic
+        iotcore_req.topic_name = iotcore_publishtopic
         iotcore_req.payload = bytes(msgstring, "utf-8")
         iotcore_req.qos = qos
         iotcore_operation = ipc_client.new_publish_to_iot_core()
@@ -51,7 +53,7 @@ def publishJoystickEvents(publishtopic):
 
         # ipc local msg publishing
         ipc_request = PublishToTopicRequest()
-        ipc_request.topic = publishtopic
+        ipc_request.topic = ipc_publishtopic
         ipc_publish_message = PublishMessage()
         ipc_publish_message.binary_message = BinaryMessage()
         ipc_publish_message.binary_message.message = bytes(msgstring, "utf-8")
@@ -63,7 +65,7 @@ def publishJoystickEvents(publishtopic):
         ipc_future.result(TIMEOUT)
 
 while True:
-    publishJoystickEvents(publishtopic)
+    publishJoystickEvents(iotcore_publishtopic, ipc_publishtopic)
 
 
 print("Joystick event detect finished")

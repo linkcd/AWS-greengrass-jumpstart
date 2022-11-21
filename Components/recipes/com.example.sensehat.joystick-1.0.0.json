@@ -6,7 +6,7 @@
     "ComponentPublisher": "linkcd",
     "ComponentConfiguration": {
       "DefaultConfiguration": {
-        "joystick_iotcore_topic": "pihat/joystick",
+        "joystick_iotcore_topic": "devices/pi/sensehat/joystick",
         "joystick_ipc_topic": "ipc/joystick",
         "accessControl": {
           "aws.greengrass.ipc.pubsub": {
@@ -27,7 +27,7 @@
                 "aws.greengrass#PublishToIoTCore"
               ],
               "resources": [
-                "pihat/joystick"
+                "devices/pi/sensehat/joystick"
               ]
             }
           }
@@ -46,7 +46,7 @@
           },
           "Run": {
             "RequiresPrivilege": true,
-            "script": "python3 -u {artifacts:path}/joystick.py '{configuration:/joystick_iotcore_topic}'"
+            "script": "python3 -u {artifacts:path}/joystick.py '{configuration:/joystick_iotcore_topic}' '{configuration:/joystick_ipc_topic}'"
           }
         }
       }

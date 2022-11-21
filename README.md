@@ -31,6 +31,11 @@ Deploy components
 sudo /greengrass/v2/bin/greengrass-cli deployment create --recipeDir Components/recipes --artifactDir Components/artifacts --merge "com.example.sensehat.led=1.0.0"
 ´´´
 
+remove component
+´´´bash
+sudo /greengrass/v2/bin/greengrass-cli --ggcRootPath /greengrass/v2 deployment create --remove "com.example.sensehat.joystick"
+´´´
+
 List components
 ´´´bash
 sudo /greengrass/v2/bin/greengrass-cli component list
@@ -47,10 +52,7 @@ sudo cat /greengrass/v2/logs/com.example.sensehat.joystick.log
 
 ´´´
 
-remove component
-´´´bash
-sudo /greengrass/v2/bin/greengrass-cli --ggcRootPath /greengrass/v2 deployment create --remove "com.example.sensehat.joystick"
-´´´
+
 
 Get local debug console passwords
 ´´´bash
