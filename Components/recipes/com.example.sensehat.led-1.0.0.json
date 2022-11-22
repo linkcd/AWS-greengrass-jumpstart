@@ -18,6 +18,29 @@
                       "*"
                     ]
                   }
+                },
+                "aws.greengrass.ShadowManager": {
+                    "com.example.sensehat.led:shadow:1": {
+                      "policyDescription": "Allows access to shadows",
+                      "operations": [
+                        "aws.greengrass#GetThingShadow",
+                        "aws.greengrass#UpdateThingShadow",
+                        "aws.greengrass#DeleteThingShadow"
+                      ],
+                      "resources": [
+                        "$aws/things/PiWithSenseHat/shadow",
+                        "$aws/things/PiWithSenseHat/shadow/name/NumberLEDNamedShadow"
+                      ]
+                    },
+                    "com.example.sensehat.led:shadow:2": {
+                      "policyDescription": "Allows access to things with shadows",
+                      "operations": [
+                        "aws.greengrass#ListNamedShadowsForThing"
+                      ],
+                      "resources": [
+                        "PiWithSenseHat"
+                      ]
+                    }    
                 }
             }
         }

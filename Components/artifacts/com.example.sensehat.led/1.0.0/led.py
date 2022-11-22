@@ -13,6 +13,9 @@ from awsiot.greengrasscoreipc.model import (
     UnauthorizedError
 )
 
+from awsiot.greengrasscoreipc.model import GetThingShadowRequest
+from awsiot.greengrasscoreipc.model import UpdateThingShadowRequest
+
 topic = "ipc/joystick"
 
 from sense_hat import SenseHat
@@ -24,7 +27,8 @@ CURRENT_B = 255
 CURRENT_G = 255
 CURRENT_DISPLAY_ON = True
 
-#         
+THING_NAME = "PiWithSenseHat"
+SHADOW_NAME = "NumberLEDNamedShadow"
 
 TIMEOUT = 10
 
@@ -87,40 +91,105 @@ class StreamHandler(client.SubscribeToTopicStreamHandler):
         print('Subscribe to topic stream closed.')
 
 
-try:
-    ipc_client = awsiot.greengrasscoreipc.connect()
+#initial settings for the reported states of the device
+currentstate =  {
+   "state":{
+      "reported":{
+         "status":"startup",
+         "number":CURRENT_NUMBER
+      }
+   }
+}
 
-    request = SubscribeToTopicRequest()
-    request.topic = topic
-    handler = StreamHandler()
-    operation = ipc_client.new_subscribe_to_topic(handler)
-    future = operation.activate(request)
-    
+#Get the shadow from the local IPC
+def sample_get_thing_shadow_request(ipc_client, thingName, shadowName):
+    global CURRENT_NUMBER
+
     try:
-        future.result(TIMEOUT)
-        print('Successfully subscribed to topic: ' + topic)
-    except concurrent.futures.TimeoutError as e:
-        print('Timeout occurred while subscribing to topic: ' + topic, file=sys.stderr)
-        raise e
-    except UnauthorizedError as e:
-        print('Unauthorized error while subscribing to topic: ' + topic, file=sys.stderr)
-        raise e
+        # create the GetThingShadow request
+        get_thing_shadow_request = GetThingShadowRequest()
+        get_thing_shadow_request.thing_name = thingName
+        get_thing_shadow_request.shadow_name = shadowName
+
+        print(thingName)
+        print(shadowName)
+        
+        # retrieve the GetThingShadow response after sending the request to the IPC server
+        op = ipc_client.new_get_thing_shadow()
+        op.activate(get_thing_shadow_request)
+        fut = op.get_response()
+        
+        result = fut.result(TIMEOUT)
+
+        #convert string to json object
+        jsonmsg = json.loads(result.payload)
+
+        #print desired states 
+        CURRENT_NUMBER = int(jsonmsg['state']['desired']['number'])
+
+        print("get shadow is:" + json.dumps(jsonmsg))
+        return result.payload
+        
     except Exception as e:
-        print('Exception while subscribing to topic: ' + topic, file=sys.stderr)
-        raise e
+        print("Error get shadow", type(e), e)
+        # except ResourceNotFoundError | UnauthorizedError | ServiceError
 
-    # Keep the main thread alive, or the process will exit.
+
+#Set the local shadow using the IPC
+def sample_update_thing_shadow_request(ipc_client, thingName, shadowName, payload):
     try:
-        while True:
-            if CURRENT_DISPLAY_ON:
-                sense.show_letter(str(CURRENT_NUMBER), text_colour=[CURRENT_R,CURRENT_G,CURRENT_B])
-            else:
-                sense.clear()
-            #time.sleep(10)
-            pass
-    except InterruptedError:
-        print('Subscribe interrupted.')
-except Exception:
-    print('Exception occurred when using IPC.', file=sys.stderr)
-    traceback.print_exc()
-    exit(1)
+        # create the UpdateThingShadow request
+        update_thing_shadow_request = UpdateThingShadowRequest()
+        update_thing_shadow_request.thing_name = thingName
+        update_thing_shadow_request.shadow_name = shadowName
+        update_thing_shadow_request.payload = payload
+                        
+        # retrieve the UpdateThingShadow response after sending the request to the IPC server
+        op = ipc_client.new_update_thing_shadow()
+        op.activate(update_thing_shadow_request)
+        fut = op.get_response()
+        
+        result = fut.result(TIMEOUT)
+
+        jsonmsg = json.loads(result.payload)
+        print("get shadow is:" + json.dumps(jsonmsg))
+        return result.payload
+        
+    except Exception as e:
+        print("Error update shadow", type(e), e)
+        # except ConflictError | UnauthorizedError | ServiceError
+
+
+### Subscribe IPC call back###
+ipc_client = awsiot.greengrasscoreipc.connect()
+
+request = SubscribeToTopicRequest()
+request.topic = topic
+handler = StreamHandler()
+operation = ipc_client.new_subscribe_to_topic(handler)
+future = operation.activate(request)
+future.result(TIMEOUT)
+print('Successfully subscribed to topic: ' + topic)
+
+
+# Loop listening to shadow and refresh display number and color
+while True:
+    print("getting shadow document")
+    #check document to see if led states need updating
+    sample_get_thing_shadow_request(ipc_client, THING_NAME, SHADOW_NAME)
+    time.sleep(10)
+
+    #set current status to good and update actual value of led output to reported
+    print("setting shadow good")
+    currentstate['state']['reported']['status'] = "good"
+    currentstate['state']['reported']['number'] = CURRENT_NUMBER
+    sample_update_thing_shadow_request(ipc_client, THING_NAME, SHADOW_NAME, bytes(json.dumps(currentstate), "utf-8"))   
+
+    time.sleep(1)
+
+    if CURRENT_DISPLAY_ON:
+        sense.show_letter(str(CURRENT_NUMBER), text_colour=[CURRENT_R,CURRENT_G,CURRENT_B])
+    else:
+        sense.clear()
+
+

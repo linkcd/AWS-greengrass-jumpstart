@@ -6,18 +6,17 @@ This repo is a jumpstart demo of AWS greengrass. It has 2 customized components 
 
 ## Component overview
 ### 1. com.example.sensehat.joystick
-This component send the joystick events (move up/down/left/right, press/hold/release) to local IPC and IoTCore
-The IPC and IoTCore topic can be found in the [recipe](./Components/recipes/com.example.sensehat.joystick-1.0.0.json)
+This component send the joystick events (move up/down/left/right, press/hold/release) to local IPC and AWS IoT Core. The IPC and IoT Core topic can be found in the [recipe](./Components/recipes/com.example.sensehat.joystick-1.0.0.json).
 
 ### 2. com.example.sensehat.led
 This component does the following:
 - Maintain a number (0-9) and display it on LED
 - When received joystick events via IPC
-  - Joystick up/down: increse/decrese the number
+  - Joystick up/down: increse/decrese the number (range between 0-9)
   - Joystick left/right: change LED display to a random color
   - Joystick press down: toggle LED number display on/off
 - Have a IoT Core Shadow, so AWS IoT Core can update the value of the number remotely.
-The IPC and IoTCore topic, shadown name etc can be found in the [recipe](./Components/recipes/com.example.sensehat.led-1.0.0.json)
+The IPC and IoTCore topic, shadown name etc can be found in the [recipe](./Components/recipes/com.example.sensehat.led-1.0.0.json).
 
 ## Hardware
 - Raspberry Pi 3b
@@ -51,6 +50,24 @@ As a part of the installtion, create an IAM user with minimal permission (the ro
 2. In Remote SSH extension, enable ports forwarding for 1441 and 1442. Ensure it is set to HTTPS (not http by default). This is for access Greengrass LocalDebugConsole from your development laptop.
 
 Check the development tips in the appendix
+
+### Setup shadow sync
+1. Create the (named) shadow in IoT core console. In our case it is "**NumberLEDNamedShadow**".
+2. Update default shadow document, in "desired" section, add the needed field. In this case, it is
+```json
+{
+  "state": {
+    "desired": {
+      "number":3
+    },
+    "reported": {
+    }
+  }
+}
+```
+2. Config the aws.greengrass.ShadowManager during deployment step. The sample config can be found at [shadow-manager-config.json](./PolicyDocuments/shadow-manager-config.json).
+3. Make sure the shadow name is correct in the "synchronize" section in the config, otherwise the shadow wont be sync between cloud and device. 
+4. More details can be found in the [sync-shadows-with-iot-core](https://docs.aws.amazon.com/greengrass/v2/developerguide/sync-shadows-with-iot-core.html) and [ipc-local-shadows](https://docs.aws.amazon.com/greengrass/v2/developerguide/ipc-local-shadows.html).
 
 ## Appendix
 ### Useful commands
