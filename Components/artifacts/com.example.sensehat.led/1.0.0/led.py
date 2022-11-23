@@ -4,6 +4,8 @@ import json
 import traceback
 import concurrent.futures
 import random
+from enum import Enum
+
 
 import awsiot.greengrasscoreipc
 import awsiot.greengrasscoreipc.client as client
@@ -21,6 +23,12 @@ topic = "ipc/joystick"
 from sense_hat import SenseHat
 sense = SenseHat()
 
+class Device_Status(Enum):
+    STARTUP = "device start up"
+    UPDATED_BY_SHADOW = "device updated by shadow"
+    UPDATED_BY_LOCAL = "device updated by local"
+
+CURRENT_STATUS = Device_Status.STARTUP
 CURRENT_NUMBER = int(sys.argv[1])
 CURRENT_R = 255
 CURRENT_B = 255
@@ -32,20 +40,34 @@ SHADOW_NAME = "NumberLEDNamedShadow"
 
 TIMEOUT = 10
 
+def update_device(new_number, new_status):
+    global CURRENT_NUMBER
+    global CURRENT_STATUS
+
+    CURRENT_NUMBER = new_number
+    CURRENT_STATUS = new_status
+    
+    # update display
+    if CURRENT_DISPLAY_ON:
+        sense.show_letter(str(CURRENT_NUMBER), text_colour=[CURRENT_R,CURRENT_G,CURRENT_B])
+    else:
+        sense.clear()
+
+    #report device update back to shadow
+    print("update shadow back when the device is updated (by local or by shadow)...")
+    update_thing_shadow_back(THING_NAME, SHADOW_NAME) 
 
 class StreamHandler(client.SubscribeToTopicStreamHandler):
     def __init__(self):
         super().__init__()
 
     def on_stream_event(self, event: SubscriptionResponseMessage) -> None:
-        global CURRENT_NUMBER
         global CURRENT_R
         global CURRENT_B
         global CURRENT_G
         global CURRENT_DISPLAY_ON
         
         try:
-            
             raw_payload = str(event.binary_message.message, "utf-8")
             print("Parsing raw payload: " + raw_payload)
 
@@ -61,13 +83,15 @@ class StreamHandler(client.SubscribeToTopicStreamHandler):
                 #ignore action that is NOT pressed
                 return
 
+            new_number = CURRENT_NUMBER
+
             if msg_direction == "up":
                 #increase number until 9
-                CURRENT_NUMBER = min(CURRENT_NUMBER + 1, 9)
+                new_number = min(CURRENT_NUMBER + 1, 9)
             
             if msg_direction == "down":
                 #decrease number until 0
-                CURRENT_NUMBER = max(CURRENT_NUMBER - 1, 0)
+                new_number = max(CURRENT_NUMBER - 1, 0)
 
             if msg_direction == "left" or msg_direction == "right":
                 #get random new color
@@ -78,7 +102,9 @@ class StreamHandler(client.SubscribeToTopicStreamHandler):
             if msg_direction == "middle":
                 #toggle led display on/off
                 CURRENT_DISPLAY_ON = not CURRENT_DISPLAY_ON
-                
+            
+            update_device(new_number, Device_Status.UPDATED_BY_LOCAL)
+
         except:
             traceback.print_exc()
 
@@ -90,29 +116,16 @@ class StreamHandler(client.SubscribeToTopicStreamHandler):
     def on_stream_closed(self) -> None:
         print('Subscribe to topic stream closed.')
 
-
-#initial settings for the reported states of the device
-currentstate =  {
-   "state":{
-      "reported":{
-         "status":"startup",
-         "number":CURRENT_NUMBER
-      }
-   }
-}
-
 #Get the shadow from the local IPC
-def sample_get_thing_shadow_request(ipc_client, thingName, shadowName):
-    global CURRENT_NUMBER
-
+def get_thing_shadow(thingName, shadowName):
+    
+    ipc_client = awsiot.greengrasscoreipc.connect()
+    
     try:
         # create the GetThingShadow request
         get_thing_shadow_request = GetThingShadowRequest()
         get_thing_shadow_request.thing_name = thingName
         get_thing_shadow_request.shadow_name = shadowName
-
-        print(thingName)
-        print(shadowName)
         
         # retrieve the GetThingShadow response after sending the request to the IPC server
         op = ipc_client.new_get_thing_shadow()
@@ -123,12 +136,9 @@ def sample_get_thing_shadow_request(ipc_client, thingName, shadowName):
 
         #convert string to json object
         jsonmsg = json.loads(result.payload)
-
-        #print desired states 
-        CURRENT_NUMBER = int(jsonmsg['state']['desired']['number'])
-
         print("get shadow is:" + json.dumps(jsonmsg))
-        return result.payload
+
+        return jsonmsg
         
     except Exception as e:
         print("Error get shadow", type(e), e)
@@ -136,7 +146,28 @@ def sample_get_thing_shadow_request(ipc_client, thingName, shadowName):
 
 
 #Set the local shadow using the IPC
-def sample_update_thing_shadow_request(ipc_client, thingName, shadowName, payload):
+def update_thing_shadow_back(thingName, shadowName):
+    #create payload
+    currentstate =  {
+        "state":{
+            "reported":{
+                "status": CURRENT_STATUS.value,
+                "number": CURRENT_NUMBER
+            }
+        }
+    }
+
+    # if the latest update was done by local joystick, we want to keep the value
+    # we will have to set the value to remote shadow desired value
+    # otherwise the remote shadow will keep overriding the local new values.
+    if CURRENT_STATUS == Device_Status.UPDATED_BY_LOCAL:
+        currentstate['state']["desired"] = {
+            "number": CURRENT_NUMBER
+        }
+
+    payload = bytes(json.dumps(currentstate), "utf-8")
+
+    ipc_client = awsiot.greengrasscoreipc.connect()
     try:
         # create the UpdateThingShadow request
         update_thing_shadow_request = UpdateThingShadowRequest()
@@ -152,7 +183,7 @@ def sample_update_thing_shadow_request(ipc_client, thingName, shadowName, payloa
         result = fut.result(TIMEOUT)
 
         jsonmsg = json.loads(result.payload)
-        print("get shadow is:" + json.dumps(jsonmsg))
+        print("After updateing, the responsed shadow is:" + json.dumps(jsonmsg))
         return result.payload
         
     except Exception as e:
@@ -171,25 +202,23 @@ future = operation.activate(request)
 future.result(TIMEOUT)
 print('Successfully subscribed to topic: ' + topic)
 
+# First time report intinal status
+update_thing_shadow_back(THING_NAME, SHADOW_NAME)   
 
 # Loop listening to shadow and refresh display number and color
 while True:
-    print("getting shadow document")
-    #check document to see if led states need updating
-    sample_get_thing_shadow_request(ipc_client, THING_NAME, SHADOW_NAME)
-    time.sleep(10)
 
-    #set current status to good and update actual value of led output to reported
-    print("setting shadow good")
-    currentstate['state']['reported']['status'] = "good"
-    currentstate['state']['reported']['number'] = CURRENT_NUMBER
-    sample_update_thing_shadow_request(ipc_client, THING_NAME, SHADOW_NAME, bytes(json.dumps(currentstate), "utf-8"))   
+    print("getting shadow document to check if we need to update device...")
+    shadow_json = get_thing_shadow(THING_NAME, SHADOW_NAME)
 
-    time.sleep(1)
+    # set device value by shadow, if reported number and desired number are mismatch
+    if 'desired' in shadow_json['state'] and 'number' in shadow_json['state']['desired']:
+        number_from_shadow = int(shadow_json['state']['desired']['number'])
+        if CURRENT_NUMBER != number_from_shadow:
+            update_device(number_from_shadow, Device_Status.UPDATED_BY_SHADOW)
+            
+    time.sleep(10) #cloud to device shadow sync: every 10 seconds
 
-    if CURRENT_DISPLAY_ON:
-        sense.show_letter(str(CURRENT_NUMBER), text_colour=[CURRENT_R,CURRENT_G,CURRENT_B])
-    else:
-        sense.clear()
+
 
 
