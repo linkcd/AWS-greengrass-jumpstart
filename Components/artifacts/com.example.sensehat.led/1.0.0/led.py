@@ -136,7 +136,7 @@ def get_thing_shadow(thingName, shadowName):
 
         #convert string to json object
         jsonmsg = json.loads(result.payload)
-        print("get shadow is:" + json.dumps(jsonmsg))
+        print("Got shadow is:" + json.dumps(jsonmsg))
 
         return jsonmsg
         
@@ -165,6 +165,7 @@ def update_thing_shadow_back(thingName, shadowName):
             "number": CURRENT_NUMBER
         }
 
+    print("New shadow to be reported:" + json.dumps(currentstate))
     payload = bytes(json.dumps(currentstate), "utf-8")
 
     ipc_client = awsiot.greengrasscoreipc.connect()
@@ -183,7 +184,7 @@ def update_thing_shadow_back(thingName, shadowName):
         result = fut.result(TIMEOUT)
 
         jsonmsg = json.loads(result.payload)
-        print("After updateing, the responsed shadow is:" + json.dumps(jsonmsg))
+        print("Shadow updated successfully.")
         return result.payload
         
     except Exception as e:
@@ -202,7 +203,8 @@ future = operation.activate(request)
 future.result(TIMEOUT)
 print('Successfully subscribed to topic: ' + topic)
 
-# First time report intinal status
+# First time report initial status
+print("component starting, report initial status to shadow... ")
 update_thing_shadow_back(THING_NAME, SHADOW_NAME)   
 
 # Loop listening to shadow and refresh display number and color

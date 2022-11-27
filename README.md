@@ -67,8 +67,9 @@ As a part of the installtion, create an IAM user with minimal permission (the ro
 
 ## 2.4 Deploy Greengrass components
 - aws.greengrass.Cli
-- aws.greengrass.ShadowManager
-- aws.greengrass.LocalDebugConsole
+- aws.greengrass.ShadowManager ([config](./PolicyDocuments/shadow-manager-config.json))
+- aws.greengrass.LocalDebugConsole 
+- aws.greengrass.LogManager ([config](./PolicyDocuments/log-manager-config.json))
 
 ## 2.5 Develop your own components
 ### Setup development environment
