@@ -5,7 +5,23 @@ This repo is a jumpstart demo of AWS greengrass. It has 2 customized components 
 - Cloud to device communication via device shadow
 
 # 1. Components overview
-## 1.1 com.example.sensehat.joystick
+## 1.1 com.example.sensehat.sensors
+This component send the sensors telemtries to IoT core. IoT Core topic and sending interval can be found in the [recipe](./Components/recipes/com.example.sensehat.sensors-1.0.0.json).
+
+Example MQTT payload:
+```json
+{
+  "timemillis": 1669671812573,
+  "pitch": 314.27,
+  "roll": 293.34,
+  "yaw": 106.97,
+  "temperature": 40.27,
+  "pressure": 1026.98,
+  "humidity": 28.74
+}
+```
+
+## 1.2 com.example.sensehat.joystick
 This component send the joystick events (move up/down/left/right, press/hold/release) to local IPC and AWS IoT Core. The IPC and IoT Core topic can be found in the [recipe](./Components/recipes/com.example.sensehat.joystick-1.0.0.json).
 
 Example MQTT payload:
@@ -25,7 +41,7 @@ Example MQTT payload:
 The possible values of direction and action can be found at [Sense Hat Document](https://pythonhosted.org/sense-hat/api/#joystick).
 
 
-## 1.2 com.example.sensehat.led
+## 1.3 com.example.sensehat.led
 This component does the following:
 - Maintain a number (0-9) and display it on LED
 - When received joystick events via IPC
@@ -38,7 +54,7 @@ This component does the following:
 
 The IPC and IoTCore topic, shadown name etc can be found in the [recipe](./Components/recipes/com.example.sensehat.led-1.0.0.json).
 
-### 1.2.1 Special Note: When local and remote shadow can update the same setting 
+### 1.3.1 Special Note: When local and remote shadow can update the same setting 
 The display number can be updated either by local joystick or by remote shadow in iot core. The latest update (either from local or remote) overwrites others. Therefore, it is important for local to set the "desired" value back to remote shadow in cloud, so the remote shadow knows the new "desired" value and will not update it in the next shadow sync cycle. 
 
 See more at the document [evice-shadow-empty-fields](https://docs.aws.amazon.com/iot/latest/developerguide/device-shadow-document.html#device-shadow-empty-fields).
@@ -123,6 +139,9 @@ sudo tail /greengrass/v2/logs/greengrass.log
 # log of a componnet
 sudo cat /greengrass/v2/logs/com.example.sensehat.joystick.log
 ```
+
+With aws.greengrass.LogManager, you can also directly check cloudwatch. The log group is something like "/aws/greengrass/UserComponent/eu-west-1/com.example.sensehat.led"
+
 
 #### Use local debug console
 After you deployed the aws.greengrass.LocalDebugConsole component and enabled 1441 and 1442 port forwarding, you can access the console https://localhost:1441/ from you local laptop

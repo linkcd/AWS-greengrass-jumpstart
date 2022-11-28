@@ -1,0 +1,43 @@
+{
+    "RecipeFormatVersion": "2020-01-25",
+    "ComponentName": "com.example.sensehat.sensors",
+    "ComponentVersion": "1.0.0",
+    "ComponentDescription": "Getting sensor data and send back to iot core via mqtt",
+    "ComponentPublisher": "linkcd",
+    "ComponentConfiguration": {
+      "DefaultConfiguration": {
+        "sensors_iotcore_topic": "devices/pi/sensehat/sensors",
+        "puiblish_interval": "1",
+        "accessControl": {
+          "aws.greengrass.ipc.mqttproxy": {
+            "com.example.sensehat.sensors:mqttproxy:1": {
+              "policyDescription": "Allows access to pub to Iot Core (cloud).",
+              "operations": [
+                "aws.greengrass#PublishToIoTCore"
+              ],
+              "resources": [
+                "devices/pi/sensehat/sensors"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "Manifests": [
+      {
+        "Platform": {
+          "os": "linux"
+        },
+        "Lifecycle": {
+          "Install": {
+            "RequiresPrivilege": true,
+            "script": "python3 -m pip install --user awsiotsdk"
+          },
+          "Run": {
+            "RequiresPrivilege": true,
+            "script": "python3 -u {artifacts:path}/sensors.py '{configuration:/sensors_iotcore_topic}' '{configuration:/puiblish_interval}'"
+          }
+        }
+      }
+    ]
+  }
