@@ -8,7 +8,7 @@
         "componentLogsConfigurationMap": {
           "com.example.sensehat.joystick": {},
           "com.example.sensehat.led": {},
-          "com.example.sensehat.sensor": {}
+          "com.example.sensehat.sensors": {}
         }
       }
     }
