@@ -55,7 +55,7 @@ def update_device(new_number, new_status):
 
     #report device update back to shadow
     print("update shadow back when the device is updated (by local or by shadow)...")
-    update_thing_shadow_back(THING_NAME, SHADOW_NAME) 
+    report_thing_shadow_back(THING_NAME, SHADOW_NAME) 
 
 class StreamHandler(client.SubscribeToTopicStreamHandler):
     def __init__(self):
@@ -117,11 +117,14 @@ class StreamHandler(client.SubscribeToTopicStreamHandler):
         print('Subscribe to topic stream closed.')
 
 #Get the shadow from the local IPC
-def get_thing_shadow(thingName, shadowName):
-    
-    ipc_client = awsiot.greengrasscoreipc.connect()
+def update_device_by_thing_shadow(thingName, shadowName):
+    print("getting shadow document to check if we need to update device...")
     
     try:
+        # Had to put this connect() function in try-catch block, as it sometimes throw the following error
+        # (AWS_ERROR_PRIORITY_QUEUE_EMPTY): Attempt to pop an item from an empty queue..
+        ipc_client = awsiot.greengrasscoreipc.connect()
+
         # create the GetThingShadow request
         get_thing_shadow_request = GetThingShadowRequest()
         get_thing_shadow_request.thing_name = thingName
@@ -135,10 +138,14 @@ def get_thing_shadow(thingName, shadowName):
         result = fut.result(TIMEOUT)
 
         #convert string to json object
-        jsonmsg = json.loads(result.payload)
-        print("Got shadow is:" + json.dumps(jsonmsg))
+        shadow_json = json.loads(result.payload)
 
-        return jsonmsg
+        # set device value by shadow, if reported number and desired number are mismatch
+        if 'desired' in shadow_json['state'] and 'number' in shadow_json['state']['desired']:
+            number_from_shadow = int(shadow_json['state']['desired']['number'])
+            if CURRENT_NUMBER != number_from_shadow:
+                update_device(number_from_shadow, Device_Status.UPDATED_BY_SHADOW)
+                print("Device updated to match the newly fetched shadow:" + json.dumps(shadow_json))
         
     except Exception as e:
         print("Error get shadow", type(e), e)
@@ -146,7 +153,7 @@ def get_thing_shadow(thingName, shadowName):
 
 
 #Set the local shadow using the IPC
-def update_thing_shadow_back(thingName, shadowName):
+def report_thing_shadow_back(thingName, shadowName):
     #create payload
     currentstate =  {
         "state":{
@@ -168,7 +175,7 @@ def update_thing_shadow_back(thingName, shadowName):
     print("New shadow to be reported:" + json.dumps(currentstate))
     payload = bytes(json.dumps(currentstate), "utf-8")
 
-    ipc_client = awsiot.greengrasscoreipc.connect()
+    
     try:
         # create the UpdateThingShadow request
         update_thing_shadow_request = UpdateThingShadowRequest()
@@ -177,6 +184,7 @@ def update_thing_shadow_back(thingName, shadowName):
         update_thing_shadow_request.payload = payload
                         
         # retrieve the UpdateThingShadow response after sending the request to the IPC server
+        ipc_client = awsiot.greengrasscoreipc.connect()
         op = ipc_client.new_update_thing_shadow()
         op.activate(update_thing_shadow_request)
         fut = op.get_response()
@@ -205,20 +213,11 @@ print('Successfully subscribed to topic: ' + topic)
 
 # First time report initial status
 print("component starting, report initial status to shadow... ")
-update_thing_shadow_back(THING_NAME, SHADOW_NAME)   
+report_thing_shadow_back(THING_NAME, SHADOW_NAME)   
 
 # Loop listening to shadow and refresh display number and color
 while True:
-
-    print("getting shadow document to check if we need to update device...")
-    shadow_json = get_thing_shadow(THING_NAME, SHADOW_NAME)
-
-    # set device value by shadow, if reported number and desired number are mismatch
-    if 'desired' in shadow_json['state'] and 'number' in shadow_json['state']['desired']:
-        number_from_shadow = int(shadow_json['state']['desired']['number'])
-        if CURRENT_NUMBER != number_from_shadow:
-            update_device(number_from_shadow, Device_Status.UPDATED_BY_SHADOW)
-            
+    update_device_by_thing_shadow(THING_NAME, SHADOW_NAME)
     time.sleep(10) #cloud to device shadow sync: every 10 seconds
 
 
