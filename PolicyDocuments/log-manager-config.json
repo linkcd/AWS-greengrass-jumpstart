@@ -1,15 +1,12 @@
 {
-    "reset": [],
-    "merge": {
-      "logsUploaderConfiguration": {
-        "systemLogsConfiguration": {
-          "uploadToCloudWatch": "true"
-        },
-        "componentLogsConfigurationMap": {
-          "com.example.sensehat.joystick": {},
-          "com.example.sensehat.led": {},
-          "com.example.sensehat.sensors": {}
-        }
-      }
-    }
-  }
+	"logsUploaderConfiguration": {
+		"systemLogsConfiguration": {
+			"uploadToCloudWatch": "true"
+		},
+		"componentLogsConfigurationMap": {
+			"com.example.sensehat.joystick": {},
+			"com.example.sensehat.led": {},
+			"com.example.sensehat.sensors": {}
+		}
+	}
+}
