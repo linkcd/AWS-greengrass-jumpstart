@@ -19,6 +19,7 @@ from awsiot.greengrasscoreipc.model import GetThingShadowRequest
 from awsiot.greengrasscoreipc.model import UpdateThingShadowRequest
 
 topic = "ipc/joystick"
+ipc_client = awsiot.greengrasscoreipc.connect()
 
 from sense_hat import SenseHat
 sense = SenseHat()
@@ -40,7 +41,7 @@ SHADOW_NAME = "NumberLEDNamedShadow"
 
 TIMEOUT = 10
 
-def update_device(new_number, new_status):
+def do_update_device(new_number, new_status):
     global CURRENT_NUMBER
     global CURRENT_STATUS
 
@@ -57,6 +58,8 @@ def update_device(new_number, new_status):
     print("update shadow back when the device is updated (by local or by shadow)...")
     report_thing_shadow_back(THING_NAME, SHADOW_NAME) 
 
+
+# Class for subscribing local IPC msg from joystick
 class StreamHandler(client.SubscribeToTopicStreamHandler):
     def __init__(self):
         super().__init__()
@@ -103,7 +106,7 @@ class StreamHandler(client.SubscribeToTopicStreamHandler):
                 #toggle led display on/off
                 CURRENT_DISPLAY_ON = not CURRENT_DISPLAY_ON
             
-            update_device(new_number, Device_Status.UPDATED_BY_LOCAL)
+            do_update_device(new_number, Device_Status.UPDATED_BY_LOCAL)
 
         except:
             traceback.print_exc()
@@ -121,11 +124,7 @@ def update_device_by_thing_shadow(thingName, shadowName):
     print("getting shadow document to check if we need to update device...")
     
     try:
-        # Had to put this connect() function in try-catch block, as it sometimes throw the following error
-        # (AWS_ERROR_PRIORITY_QUEUE_EMPTY): Attempt to pop an item from an empty queue..
-        ipc_client = awsiot.greengrasscoreipc.connect()
-
-        # create the GetThingShadow request
+         # create the GetThingShadow request
         get_thing_shadow_request = GetThingShadowRequest()
         get_thing_shadow_request.thing_name = thingName
         get_thing_shadow_request.shadow_name = shadowName
@@ -144,7 +143,7 @@ def update_device_by_thing_shadow(thingName, shadowName):
         if 'desired' in shadow_json['state'] and 'number' in shadow_json['state']['desired']:
             number_from_shadow = int(shadow_json['state']['desired']['number'])
             if CURRENT_NUMBER != number_from_shadow:
-                update_device(number_from_shadow, Device_Status.UPDATED_BY_SHADOW)
+                do_update_device(number_from_shadow, Device_Status.UPDATED_BY_SHADOW)
                 print("Device updated to match the newly fetched shadow:" + json.dumps(shadow_json))
         
     except Exception as e:
@@ -154,6 +153,8 @@ def update_device_by_thing_shadow(thingName, shadowName):
 
 #Set the local shadow using the IPC
 def report_thing_shadow_back(thingName, shadowName):
+
+
     #create payload
     currentstate =  {
         "state":{
@@ -184,8 +185,8 @@ def report_thing_shadow_back(thingName, shadowName):
         update_thing_shadow_request.payload = payload
                         
         # retrieve the UpdateThingShadow response after sending the request to the IPC server
-        ipc_client = awsiot.greengrasscoreipc.connect()
-        op = ipc_client.new_update_thing_shadow()
+        ipc_client_report = awsiot.greengrasscoreipc.connect()
+        op = ipc_client_report.new_update_thing_shadow()
         op.activate(update_thing_shadow_request)
         fut = op.get_response()
         
@@ -201,7 +202,7 @@ def report_thing_shadow_back(thingName, shadowName):
 
 
 ### Subscribe IPC call back###
-ipc_client = awsiot.greengrasscoreipc.connect()
+
 
 request = SubscribeToTopicRequest()
 request.topic = topic

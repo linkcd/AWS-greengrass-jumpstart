@@ -65,19 +65,26 @@ def get_sensor_data():
     return message
 
 
-def publishSensorData(iotcore_publishtopic):
-    message = get_sensor_data()
-    msgstring = json.dumps(message)
+def publishSensorData(ipc_client, iotcore_publishtopic):
 
-    # iot core msg publishing
-    iotcore_req = PublishToIoTCoreRequest()
-    iotcore_req.topic_name = iotcore_publishtopic
-    iotcore_req.payload = bytes(msgstring, "utf-8")
-    iotcore_req.qos = qos
-    iotcore_operation = ipc_client.new_publish_to_iot_core()
-    iotcore_operation.activate(iotcore_req)
-    iotcore_future = iotcore_operation.get_response()
-    iotcore_future.result(TIMEOUT)
+    try:
+        
+
+        message = get_sensor_data()
+        msgstring = json.dumps(message)
+
+        # iot core msg publishing
+        iotcore_req = PublishToIoTCoreRequest()
+        iotcore_req.topic_name = iotcore_publishtopic
+        iotcore_req.payload = bytes(msgstring, "utf-8")
+        iotcore_req.qos = qos
+        iotcore_operation = ipc_client.new_publish_to_iot_core()
+        iotcore_operation.activate(iotcore_req)
+        iotcore_future = iotcore_operation.get_response()
+        iotcore_future.result(TIMEOUT)
+    
+    except Exception as e:
+        print("Error publishSensorData:", type(e), e)
 
 from sense_hat import SenseHat 
 sense = SenseHat()
@@ -89,10 +96,12 @@ TIMEOUT = 10
 qos = QOS.AT_LEAST_ONCE
 subqos = QOS.AT_MOST_ONCE
 
+
+# Have to leave this out of the loop, otherewise will eat all memory of pi.
 ipc_client = awsiot.greengrasscoreipc.connect()
 
 while True:
-    publishSensorData(iotcore_publishtopic)
+    publishSensorData(ipc_client, iotcore_publishtopic)
     time.sleep(puiblish_interval)
     
 
