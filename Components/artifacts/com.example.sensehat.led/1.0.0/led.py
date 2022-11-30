@@ -5,29 +5,24 @@ import traceback
 import concurrent.futures
 import random
 from enum import Enum
-
+from sense_hat import SenseHat
 
 import awsiot.greengrasscoreipc
-import awsiot.greengrasscoreipc.client as client
+from awsiot.greengrasscoreipc.clientv2 import GreengrassCoreIPCClientV2
 from awsiot.greengrasscoreipc.model import (
     SubscribeToTopicRequest,
     SubscriptionResponseMessage,
-    UnauthorizedError
+    UnauthorizedError,
+    GetThingShadowRequest,
+    UpdateThingShadowRequest
 )
-
-from awsiot.greengrasscoreipc.model import GetThingShadowRequest
-from awsiot.greengrasscoreipc.model import UpdateThingShadowRequest
-
-topic = "ipc/joystick"
-ipc_client = awsiot.greengrasscoreipc.connect()
-
-from sense_hat import SenseHat
-sense = SenseHat()
 
 class Device_Status(Enum):
     STARTUP = "device start up"
     UPDATED_BY_SHADOW = "device updated by shadow"
     UPDATED_BY_LOCAL = "device updated by local"
+
+sense = SenseHat()
 
 CURRENT_STATUS = Device_Status.STARTUP
 CURRENT_NUMBER = int(sys.argv[1])
@@ -35,11 +30,67 @@ CURRENT_R = 255
 CURRENT_B = 255
 CURRENT_G = 255
 CURRENT_DISPLAY_ON = True
-
 THING_NAME = "PiWithSenseHat"
 SHADOW_NAME = "NumberLEDNamedShadow"
-
 TIMEOUT = 10
+JOYSTICK_TOPIC = "ipc/joystick"
+
+ipc_client = GreengrassCoreIPCClientV2()
+
+def on_stream_event(event: SubscriptionResponseMessage) -> None:
+    global CURRENT_R
+    global CURRENT_B
+    global CURRENT_G
+    global CURRENT_DISPLAY_ON
+    
+    try:
+        raw_payload = str(event.binary_message.message, "utf-8")
+        print("Parsing raw payload: " + raw_payload)
+
+        payload = json.loads(raw_payload)
+
+        msg_direction = payload["direction"]
+        msg_action = payload["action"]
+
+        print("Received direction: " + msg_direction)
+        print("Received action: " + msg_action)
+
+        if msg_action != "pressed":
+            #ignore action that is NOT pressed
+            return
+
+        new_number = CURRENT_NUMBER
+
+        if msg_direction == "up":
+            #increase number until 9
+            new_number = min(CURRENT_NUMBER + 1, 9)
+        
+        if msg_direction == "down":
+            #decrease number until 0
+            new_number = max(CURRENT_NUMBER - 1, 0)
+
+        if msg_direction == "left" or msg_direction == "right":
+            #get random new color
+            CURRENT_R = random.randint(0, 255)
+            CURRENT_B = random.randint(0, 255)
+            CURRENT_G = random.randint(0, 255)
+
+        if msg_direction == "middle":
+            #toggle led display on/off
+            CURRENT_DISPLAY_ON = not CURRENT_DISPLAY_ON
+        
+        do_update_device(new_number, Device_Status.UPDATED_BY_LOCAL)
+
+    except:
+        traceback.print_exc()
+
+def on_stream_error(error: Exception) -> bool:
+    print('Received a stream error.', file=sys.stderr)
+    traceback.print_exc()
+    return False  # Return True to close stream, False to keep stream open.
+
+def on_stream_closed() -> None:
+    print('Subscribe to topic stream closed.')
 
 def do_update_device(new_number, new_status):
     global CURRENT_NUMBER
@@ -59,85 +110,16 @@ def do_update_device(new_number, new_status):
     report_thing_shadow_back(THING_NAME, SHADOW_NAME) 
 
 
-# Class for subscribing local IPC msg from joystick
-class StreamHandler(client.SubscribeToTopicStreamHandler):
-    def __init__(self):
-        super().__init__()
-
-    def on_stream_event(self, event: SubscriptionResponseMessage) -> None:
-        global CURRENT_R
-        global CURRENT_B
-        global CURRENT_G
-        global CURRENT_DISPLAY_ON
-        
-        try:
-            raw_payload = str(event.binary_message.message, "utf-8")
-            print("Parsing raw payload: " + raw_payload)
-
-            payload = json.loads(raw_payload)
-
-            msg_direction = payload["direction"]
-            msg_action = payload["action"]
-
-            print("Received direction: " + msg_direction)
-            print("Received action: " + msg_action)
-
-            if msg_action != "pressed":
-                #ignore action that is NOT pressed
-                return
-
-            new_number = CURRENT_NUMBER
-
-            if msg_direction == "up":
-                #increase number until 9
-                new_number = min(CURRENT_NUMBER + 1, 9)
-            
-            if msg_direction == "down":
-                #decrease number until 0
-                new_number = max(CURRENT_NUMBER - 1, 0)
-
-            if msg_direction == "left" or msg_direction == "right":
-                #get random new color
-                CURRENT_R = random.randint(0, 255)
-                CURRENT_B = random.randint(0, 255)
-                CURRENT_G = random.randint(0, 255)
-
-            if msg_direction == "middle":
-                #toggle led display on/off
-                CURRENT_DISPLAY_ON = not CURRENT_DISPLAY_ON
-            
-            do_update_device(new_number, Device_Status.UPDATED_BY_LOCAL)
-
-        except:
-            traceback.print_exc()
-
-    def on_stream_error(self, error: Exception) -> bool:
-        print("Received a stream error.", file=sys.stderr)
-        traceback.print_exc()
-        return False  # Return True to close stream, False to keep stream open.
-
-    def on_stream_closed(self) -> None:
-        print('Subscribe to topic stream closed.')
-
 #Get the shadow from the local IPC
 def update_device_by_thing_shadow(thingName, shadowName):
     print("getting shadow document to check if we need to update device...")
     
     try:
-         # create the GetThingShadow request
-        get_thing_shadow_request = GetThingShadowRequest()
-        get_thing_shadow_request.thing_name = thingName
-        get_thing_shadow_request.shadow_name = shadowName
-        
         # retrieve the GetThingShadow response after sending the request to the IPC server
-        op = ipc_client.new_get_thing_shadow()
-        op.activate(get_thing_shadow_request)
-        fut = op.get_response()
-        
-        result = fut.result(TIMEOUT)
+        get_shadow_result = ipc_client.get_thing_shadow(thing_name=thingName, shadow_name=shadowName)
 
         #convert string to json object
-        shadow_json = json.loads(result.payload)
+        shadow_json = json.loads(get_shadow_result.payload)
 
         # set device value by shadow, if reported number and desired number are mismatch
         if 'desired' in shadow_json['state'] and 'number' in shadow_json['state']['desired']:
@@ -148,13 +130,12 @@ def update_device_by_thing_shadow(thingName, shadowName):
         
     except Exception as e:
         print("Error get shadow", type(e), e)
+        traceback.print_exc()
         # except ResourceNotFoundError | UnauthorizedError | ServiceError
 
 
 #Set the local shadow using the IPC
 def report_thing_shadow_back(thingName, shadowName):
-
-
     #create payload
     currentstate =  {
         "state":{
@@ -176,41 +157,24 @@ def report_thing_shadow_back(thingName, shadowName):
     print("New shadow to be reported:" + json.dumps(currentstate))
     payload = bytes(json.dumps(currentstate), "utf-8")
 
-    
     try:
-        # create the UpdateThingShadow request
-        update_thing_shadow_request = UpdateThingShadowRequest()
-        update_thing_shadow_request.thing_name = thingName
-        update_thing_shadow_request.shadow_name = shadowName
-        update_thing_shadow_request.payload = payload
-                        
-        # retrieve the UpdateThingShadow response after sending the request to the IPC server
-        ipc_client_report = awsiot.greengrasscoreipc.connect()
-        op = ipc_client_report.new_update_thing_shadow()
-        op.activate(update_thing_shadow_request)
-        fut = op.get_response()
-        
-        result = fut.result(TIMEOUT)
-
+        result = ipc_client.update_thing_shadow(thing_name=thingName, shadow_name=shadowName, payload=payload)
         jsonmsg = json.loads(result.payload)
         print("Shadow updated successfully.")
         return result.payload
         
     except Exception as e:
         print("Error update shadow", type(e), e)
+        traceback.print_exc()
         # except ConflictError | UnauthorizedError | ServiceError
 
 
-### Subscribe IPC call back###
+# ------ The code exeuction begins here ------ 
 
-
-request = SubscribeToTopicRequest()
-request.topic = topic
-handler = StreamHandler()
-operation = ipc_client.new_subscribe_to_topic(handler)
-future = operation.activate(request)
-future.result(TIMEOUT)
-print('Successfully subscribed to topic: ' + topic)
+# Subscription to local IPC joystick events.
+_, operation = ipc_client.subscribe_to_topic(topic=JOYSTICK_TOPIC, on_stream_event=on_stream_event,
+                                                on_stream_error=on_stream_error, on_stream_closed=on_stream_closed)
+print('Successfully subscribed to topic: ' + JOYSTICK_TOPIC)
 
 # First time report initial status
 print("component starting, report initial status to shadow... ")
