@@ -4,6 +4,8 @@ This repo is a jumpstart demo of AWS greengrass. It has 2 customized components 
 - Device to cloud communication via MQTT
 - Cloud to device communication via device shadow
 
+![Architecture](./doc/Greengrass_jumpstart_architecture.png?raw=true "Architecture")
+
 # 1. Components overview
 ## 1.1 com.example.sensehat.sensors
 This component send the sensors telemtries to IoT core. IoT Core topic and sending interval can be found in the [recipe](./Components/recipes/com.example.sensehat.sensors-1.0.0.json).
