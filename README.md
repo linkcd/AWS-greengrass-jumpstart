@@ -54,6 +54,8 @@ This component does the following:
 
 The IPC and IoTCore topic, shadown name etc can be found in the [recipe](./Components/recipes/com.example.sensehat.led-1.0.0.json).
 
+**Note**: In this component we are using **GreengrassCoreIPCClientV2** (sensors and joystick are using v1), to avoid sync/async issue. With V2 the code is also cleaner. GreengrassCoreIPCClientV2 document can be found at [here](https://aws.github.io/aws-iot-device-sdk-python-v2/awsiot/greengrasscoreipc.html).
+
 ### 1.3.1 Special Note: When local and remote shadow can update the same setting 
 The display number can be updated either by local joystick or by remote shadow in iot core. The latest update (either from local or remote) overwrites others. Therefore, it is important for local to set the "desired" value back to remote shadow in cloud, so the remote shadow knows the new "desired" value and will not update it in the next shadow sync cycle. 
 
