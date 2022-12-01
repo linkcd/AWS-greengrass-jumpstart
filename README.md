@@ -4,7 +4,14 @@ This repo is a jumpstart demo of AWS greengrass. It has 2 customized components 
 - Device to cloud communication via MQTT
 - Cloud to device communication via device shadow
 
+### Architecture
 ![Architecture](./doc/Greengrass_jumpstart_architecture.png?raw=true "Architecture")
+
+### Device to Cloud Shadow Update 
+![Device to Cloud Shadow Update](./doc/device_to_cloud_shadow_update.gif?raw=true "Device to Cloud Shadow Update")
+
+### Cloud to Device Shadow Update 
+![Cloud to Device Shadow Update](./doc/cloud_to_device_shadow_update.gif?raw=true "Cloud to Device Shadow Update")
 
 # 1. Components overview
 ## 1.1 com.example.sensehat.sensors
