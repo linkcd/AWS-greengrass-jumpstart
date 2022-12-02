@@ -164,6 +164,8 @@ sudo /greengrass/v2/bin/greengrass-cli get-debug-password
 
 2. The console is using a self-signed https certificate, use firefox to bypass the warning (Edge cannot bypass)
 
+![local debug console](./doc/local_debug_console.png "Local debug console")
+
 #### Access local hardware resources
 By default the Greengrass user cannot have permission to access local hardware resources such as sense hat. There are two ways to solve it:
 1. In recipes, require RequiresPrivilege (recommended)
